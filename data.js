@@ -76,6 +76,13 @@ window.SITE_DATA = {
       "title": "성경사전",
       "description": "성경사전으로 의미를 찾게 도와줌.",
       "link": "https://chatgpt.com/g/g-yloWVIjpI-seonggyeongsajeon"
+    },
+    {
+      "id": "gpt-1783400500813",
+      "category": "wonuh",
+      "title": "원어 단어 분석",
+      "description": "구약 히브리어, 신약 헬라어 원어를 찾을 수 있도록 도와줌.",
+      "link": "https://chatgpt.com/g/g-68dbc9e872c08191a69fa1917804ac5e-new-theologos-gpt"
     }
   ]
 };
