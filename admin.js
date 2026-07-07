@@ -49,12 +49,100 @@ function showAdmin() {
 
   siteData = loadSiteData();
   populateCategorySelect();
+  renderCategoryList();
   renderList();
 
   document.getElementById("newBtn").addEventListener("click", () => openForm(null));
   document.getElementById("cancelEntryBtn").addEventListener("click", closeForm);
   document.getElementById("saveEntryBtn").addEventListener("click", saveEntry);
   document.getElementById("exportBtn").addEventListener("click", () => downloadDataJsFile(siteData));
+  document.getElementById("newCategoryBtn").addEventListener("click", addCategory);
+}
+
+function slugify(name) {
+  const base = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9가-힣]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return (base || "cat") + "-" + Date.now().toString(36);
+}
+
+function renderCategoryList() {
+  const wrap = document.getElementById("categoryListWrap");
+  if (siteData.categories.length === 0) {
+    wrap.innerHTML = `<p class="empty-msg">카테고리가 없습니다. "+ 새 카테고리 추가"로 만들어 보세요.</p>`;
+    return;
+  }
+  wrap.innerHTML = siteData.categories
+    .map((c) => {
+      const count = siteData.gpts.filter((g) => g.category === c.id).length;
+      return `
+      <div class="category-admin-item" data-cat-id="${c.id}">
+        <input type="text" value="${escapeHtml(c.name)}" data-role="cat-name-input" />
+        <span class="count">챗봇 ${count}개</span>
+        <button class="rename-btn" data-action="rename-cat" data-id="${c.id}">이름 저장</button>
+        <button class="del-cat-btn" data-action="del-cat" data-id="${c.id}">삭제</button>
+      </div>`;
+    })
+    .join("");
+
+  wrap.querySelectorAll("button[data-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-id");
+      if (btn.getAttribute("data-action") === "rename-cat") {
+        renameCategory(id, btn);
+      } else {
+        deleteCategory(id);
+      }
+    });
+  });
+}
+
+function addCategory() {
+  const name = prompt("새 카테고리 이름을 입력하세요.");
+  if (!name || !name.trim()) return;
+  siteData.categories.push({ id: slugify(name), name: name.trim() });
+  saveSiteData(siteData);
+  populateCategorySelect();
+  renderCategoryList();
+  renderList();
+}
+
+function renameCategory(id, btn) {
+  const item = btn.closest(".category-admin-item");
+  const input = item.querySelector('[data-role="cat-name-input"]');
+  const newName = input.value.trim();
+  if (!newName) {
+    alert("카테고리 이름을 입력해 주세요.");
+    return;
+  }
+  const cat = siteData.categories.find((c) => c.id === id);
+  cat.name = newName;
+  saveSiteData(siteData);
+  populateCategorySelect();
+  renderCategoryList();
+  renderList();
+}
+
+function deleteCategory(id) {
+  const count = siteData.gpts.filter((g) => g.category === id).length;
+  if (count > 0) {
+    alert(
+      `이 카테고리에는 아직 챗봇 ${count}개가 등록되어 있어 삭제할 수 없습니다.\n먼저 해당 챗봇들을 다른 카테고리로 옮기거나 삭제해 주세요.`
+    );
+    return;
+  }
+  if (siteData.categories.length <= 1) {
+    alert("최소 1개의 카테고리는 남아 있어야 합니다.");
+    return;
+  }
+  if (!confirm("이 카테고리를 삭제할까요?")) return;
+  siteData.categories = siteData.categories.filter((c) => c.id !== id);
+  saveSiteData(siteData);
+  populateCategorySelect();
+  renderCategoryList();
+  renderList();
 }
 
 function populateCategorySelect() {
