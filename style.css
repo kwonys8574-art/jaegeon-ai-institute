@@ -26,6 +26,7 @@ header.site-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -33,16 +34,27 @@ header.site-header {
 }
 
 .site-header .brand {
-  font-size: 1.25rem;
+  font-size: clamp(0.85rem, 4.2vw, 1.25rem);
   font-weight: 700;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.site-header nav {
+  display: flex;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .site-header nav a {
   color: #eae6da;
   text-decoration: none;
-  margin-left: 20px;
-  font-size: 0.95rem;
+  margin-left: clamp(10px, 3vw, 20px);
+  font-size: clamp(0.75rem, 3vw, 0.95rem);
+  white-space: nowrap;
 }
 
 .site-header nav a:hover { color: var(--gold); }
@@ -55,15 +67,17 @@ header.site-header {
 }
 
 .hero h1 {
-  font-size: 2.1rem;
+  font-size: clamp(1.25rem, 6.5vw, 2.1rem);
   margin: 0 0 12px;
   letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
 .hero p {
   color: #d8d3c4;
-  font-size: 1.05rem;
+  font-size: clamp(0.8rem, 3.2vw, 1.05rem);
   margin: 0;
+  white-space: nowrap;
 }
 
 .category-nav {
@@ -85,9 +99,10 @@ header.site-header {
   background: var(--bg);
   color: var(--navy);
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: clamp(0.78rem, 3vw, 0.9rem);
   font-weight: 600;
   border: 1px solid #e0ddd0;
+  white-space: nowrap;
 }
 
 .category-nav a:hover {
@@ -108,11 +123,12 @@ section.category-section {
 }
 
 section.category-section h2 {
-  font-size: 1.4rem;
+  font-size: clamp(1.05rem, 4.5vw, 1.4rem);
   border-left: 5px solid var(--gold);
   padding-left: 12px;
   margin-bottom: 20px;
   color: var(--navy);
+  white-space: nowrap;
 }
 
 .card-grid {
@@ -134,8 +150,11 @@ section.category-section h2 {
 
 .card h3 {
   margin: 0;
-  font-size: 1.05rem;
+  font-size: clamp(0.92rem, 4vw, 1.05rem);
   color: var(--navy);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .card p {
