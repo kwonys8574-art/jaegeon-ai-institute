@@ -1,6 +1,6 @@
 // ===== 관리자 비밀번호 설정 =====
 // 비밀번호를 바꾸려면 아래 따옴표 안의 문자만 원하는 값으로 바꾸고 저장하세요.
-const ADMIN_PASSWORD = "jaegeon2026";
+const ADMIN_PASSWORD = "jaegun2026";
 // ================================
 
 const SESSION_KEY = "jaegeonAiAdminLoggedIn";
