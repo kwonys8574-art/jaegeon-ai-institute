@@ -1,4 +1,5 @@
 name: Update site data
+run-name: Admin update ${{ github.event.client_payload.requestId }}
 
 on:
   repository_dispatch:
@@ -6,6 +7,10 @@ on:
 
 permissions:
   contents: write
+
+concurrency:
+  group: update-site-data
+  cancel-in-progress: false
 
 jobs:
   update:

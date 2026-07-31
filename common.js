@@ -74,6 +74,10 @@ async function dispatchSiteDataUpdate(data, password, token) {
   if (!token) {
     throw new Error("GitHub 동기화 토큰이 설정되지 않았습니다.");
   }
+  const requestId =
+    typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Date.now().toString(36) + Math.random().toString(36).slice(2);
   const res = await fetch(
     `https://api.github.com/repos/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/dispatches`,
     {
@@ -88,12 +92,13 @@ async function dispatchSiteDataUpdate(data, password, token) {
         event_type: "update-site-data",
         client_payload: {
           password,
+          requestId,
           siteData: JSON.stringify(data),
         },
       }),
     }
   );
-  if (res.status === 204) return;
+  if (res.status === 204) return requestId;
   let detail = "";
   try {
     const body = await res.json();
@@ -102,4 +107,63 @@ async function dispatchSiteDataUpdate(data, password, token) {
     detail = res.statusText;
   }
   throw new Error("GitHub 반영 요청 실패: " + (detail || res.status));
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchDispatchRun(requestId) {
+  const url =
+    `https://api.github.com/repos/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/` +
+    `actions/runs?event=repository_dispatch&per_page=20&t=${Date.now()}`;
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!res.ok) {
+    throw new Error("GitHub Actions 상태를 확인하지 못했습니다. (" + res.status + ")");
+  }
+  const body = await res.json();
+  return (body.workflow_runs || []).find(
+    (run) => run.display_title === "Admin update " + requestId
+  );
+}
+
+async function waitForDispatchCompletion(requestId, timeoutMs = 120000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const run = await fetchDispatchRun(requestId);
+    if (run && run.status === "completed") return run;
+    await delay(3000);
+  }
+  throw new Error("GitHub Actions 완료 확인 시간이 초과되었습니다.");
+}
+
+async function fetchPublishedSiteData() {
+  const url =
+    `https://${GITHUB_REPO.owner}.github.io/${GITHUB_REPO.repo}/data.js?t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("공개 사이트 데이터를 확인하지 못했습니다. (" + res.status + ")");
+  }
+  return parseSiteDataJs(await res.text());
+}
+
+async function waitForPublishedSiteData(expected, timeoutMs = 120000) {
+  const expectedJson = JSON.stringify(expected);
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const published = await fetchPublishedSiteData();
+      if (JSON.stringify(published) === expectedJson) return;
+    } catch (e) {
+      console.warn(e);
+    }
+    await delay(4000);
+  }
+  throw new Error("GitHub에는 반영됐지만 공개 사이트 반영 확인 시간이 초과되었습니다.");
 }

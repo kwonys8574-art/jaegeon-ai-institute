@@ -1,5 +1,8 @@
 function renderSite() {
-  const data = loadSiteData();
+  // 공개 사이트는 배포된 data.js를 기준으로 표시합니다.
+  // 관리자 페이지가 남긴 브라우저 localStorage를 사용하면 다른 기기에서
+  // 반영된 최신 내용 대신 오래된 목록이 다시 보일 수 있습니다.
+  const data = JSON.parse(JSON.stringify(window.SITE_DATA));
 
   document.getElementById("brandName").textContent = data.siteName;
   document.getElementById("heroTitle").textContent = data.siteName;

@@ -158,18 +158,47 @@ function getSessionPassword() {
 async function persistSiteData() {
   saveSiteData(siteData);
   const seq = ++syncSeq;
+  const submittedData = JSON.parse(JSON.stringify(siteData));
   setSyncStatus("syncing", "GitHub에 반영 중...");
   try {
-    await dispatchSiteDataUpdate(siteData, getSessionPassword(), getDispatchToken());
-    if (seq !== syncSeq) return;
-    setSyncStatus(
-      "ok",
-      "GitHub 반영 요청이 접수되었습니다. 보통 1~2분 후 공개 사이트에 나타납니다."
+    const requestId = await dispatchSiteDataUpdate(
+      submittedData,
+      getSessionPassword(),
+      getDispatchToken()
     );
+    if (seq !== syncSeq) return;
+    setSyncStatus("syncing", "GitHub Actions에서 반영 중...");
+    monitorSyncCompletion(requestId, submittedData, seq);
   } catch (e) {
     if (seq !== syncSeq) return;
     console.error(e);
     setSyncStatus("error", e.message + " (이 브라우저에는 저장됨)");
+  }
+}
+
+async function monitorSyncCompletion(requestId, submittedData, seq) {
+  try {
+    const run = await waitForDispatchCompletion(requestId);
+    if (seq !== syncSeq) return;
+    if (run.conclusion !== "success") {
+      throw new Error("GitHub Actions 반영에 실패했습니다.");
+    }
+
+    setSyncStatus("syncing", "GitHub 반영 완료 · 공개 사이트 적용 확인 중...");
+    await waitForPublishedSiteData(submittedData);
+    if (seq !== syncSeq) return;
+
+    const completedAt = new Date(run.updated_at || Date.now()).toLocaleString("ko-KR");
+    setSyncStatus("ok", `반영 완료: ${completedAt}`);
+    setTimeout(() => {
+      if (seq === syncSeq) {
+        setSyncStatus("ok", `GitHub 자동 반영 준비 완료 · 마지막 반영 ${completedAt}`);
+      }
+    }, 10000);
+  } catch (e) {
+    if (seq !== syncSeq) return;
+    console.error(e);
+    setSyncStatus("error", e.message);
   }
 }
 
