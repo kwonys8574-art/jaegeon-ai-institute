@@ -1,11 +1,22 @@
 // ===== 관리자 비밀번호 설정 =====
 // 비밀번호를 바꾸려면 아래 따옴표 안의 문자만 원하는 값으로 바꾸고 저장하세요.
+// GitHub Actions 시크릿 ADMIN_PASSWORD 도 같은 값으로 맞춰 주세요.
 const ADMIN_PASSWORD = "jaegun2026";
 // ================================
 
+// ===== GitHub 자동 반영용 토큰 =====
+// Fine-grained PAT: Repository permissions → Actions: Read and write
+// (저장소: kwonys8574-art/jaegeon-ai-institute 만 허용)
+// 관리자 3명은 이 값을 외울 필요 없습니다. 로그인 비밀번호만 사용합니다.
+const GITHUB_DISPATCH_TOKEN = "";
+// ==================================
+
 const SESSION_KEY = "jaegeonAiAdminLoggedIn";
+const SESSION_PW_KEY = "jaegeonAiAdminPassword";
 
 let siteData = null;
+let adminUiBound = false;
+let syncSeq = 0;
 
 function init() {
   const loggedIn = sessionStorage.getItem(SESSION_KEY) === "yes";
@@ -22,6 +33,7 @@ function init() {
   document.getElementById("logoutLink").addEventListener("click", (e) => {
     e.preventDefault();
     sessionStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_PW_KEY);
     location.reload();
   });
 }
@@ -30,6 +42,7 @@ function handleLogin() {
   const pw = document.getElementById("pwInput").value;
   if (pw === ADMIN_PASSWORD) {
     sessionStorage.setItem(SESSION_KEY, "yes");
+    sessionStorage.setItem(SESSION_PW_KEY, pw);
     showAdmin();
   } else {
     document.getElementById("loginError").textContent = "비밀번호가 올바르지 않습니다.";
@@ -42,21 +55,73 @@ function showLogin() {
   document.getElementById("logoutLink").style.display = "none";
 }
 
-function showAdmin() {
+async function showAdmin() {
   document.getElementById("loginView").style.display = "none";
   document.getElementById("adminView").style.display = "block";
   document.getElementById("logoutLink").style.display = "inline";
 
-  siteData = loadSiteData();
+  setSyncStatus("loading", "GitHub 최신 데이터를 불러오는 중...");
+  try {
+    siteData = await fetchRemoteSiteData();
+    saveSiteData(siteData);
+    setSyncStatus("ok", "GitHub 최신 데이터를 불러왔습니다. 저장 시 자동으로 반영됩니다.");
+  } catch (e) {
+    console.warn(e);
+    siteData = loadSiteData();
+    setSyncStatus(
+      "warn",
+      "원격 데이터를 불러오지 못해 이 브라우저 저장본을 사용합니다. (" + e.message + ")"
+    );
+  }
+
   populateCategorySelect();
   renderCategoryList();
   renderList();
 
-  document.getElementById("newBtn").addEventListener("click", () => openForm(null));
-  document.getElementById("cancelEntryBtn").addEventListener("click", closeForm);
-  document.getElementById("saveEntryBtn").addEventListener("click", saveEntry);
-  document.getElementById("exportBtn").addEventListener("click", () => downloadDataJsFile(siteData));
-  document.getElementById("newCategoryBtn").addEventListener("click", addCategory);
+  if (!adminUiBound) {
+    adminUiBound = true;
+    document.getElementById("newBtn").addEventListener("click", () => openForm(null));
+    document.getElementById("cancelEntryBtn").addEventListener("click", closeForm);
+    document.getElementById("saveEntryBtn").addEventListener("click", saveEntry);
+    document.getElementById("exportBtn").addEventListener("click", () => downloadDataJsFile(siteData));
+    document.getElementById("newCategoryBtn").addEventListener("click", addCategory);
+  }
+
+  if (!GITHUB_DISPATCH_TOKEN) {
+    setSyncStatus(
+      "error",
+      "GitHub 자동 반영 토큰이 아직 설정되지 않았습니다. 관리자에게 토큰 설정을 요청해 주세요."
+    );
+  }
+}
+
+function setSyncStatus(kind, message) {
+  const el = document.getElementById("syncStatus");
+  if (!el) return;
+  el.className = "sync-status sync-" + kind;
+  el.textContent = message;
+}
+
+function getSessionPassword() {
+  return sessionStorage.getItem(SESSION_PW_KEY) || ADMIN_PASSWORD;
+}
+
+async function persistSiteData() {
+  saveSiteData(siteData);
+  const seq = ++syncSeq;
+  setSyncStatus("syncing", "GitHub에 반영 중...");
+  try {
+    await dispatchSiteDataUpdate(siteData, getSessionPassword(), GITHUB_DISPATCH_TOKEN);
+    if (seq !== syncSeq) return;
+    setSyncStatus(
+      "ok",
+      "GitHub 반영 요청이 접수되었습니다. 보통 1~2분 후 공개 사이트에 나타납니다."
+    );
+  } catch (e) {
+    if (seq !== syncSeq) return;
+    console.error(e);
+    setSyncStatus("error", e.message + " (이 브라우저에는 저장됨)");
+  }
 }
 
 function slugify(name) {
@@ -99,17 +164,17 @@ function renderCategoryList() {
   });
 }
 
-function addCategory() {
+async function addCategory() {
   const name = prompt("새 카테고리 이름을 입력하세요.");
   if (!name || !name.trim()) return;
   siteData.categories.push({ id: slugify(name), name: name.trim() });
-  saveSiteData(siteData);
+  await persistSiteData();
   populateCategorySelect();
   renderCategoryList();
   renderList();
 }
 
-function renameCategory(id, btn) {
+async function renameCategory(id, btn) {
   const item = btn.closest(".category-admin-item");
   const input = item.querySelector('[data-role="cat-name-input"]');
   const newName = input.value.trim();
@@ -119,13 +184,13 @@ function renameCategory(id, btn) {
   }
   const cat = siteData.categories.find((c) => c.id === id);
   cat.name = newName;
-  saveSiteData(siteData);
+  await persistSiteData();
   populateCategorySelect();
   renderCategoryList();
   renderList();
 }
 
-function deleteCategory(id) {
+async function deleteCategory(id) {
   const count = siteData.gpts.filter((g) => g.category === id).length;
   if (count > 0) {
     alert(
@@ -139,7 +204,7 @@ function deleteCategory(id) {
   }
   if (!confirm("이 카테고리를 삭제할까요?")) return;
   siteData.categories = siteData.categories.filter((c) => c.id !== id);
-  saveSiteData(siteData);
+  await persistSiteData();
   populateCategorySelect();
   renderCategoryList();
   renderList();
@@ -216,7 +281,7 @@ function closeForm() {
   document.getElementById("formBox").style.display = "none";
 }
 
-function saveEntry() {
+async function saveEntry() {
   const id = document.getElementById("editId").value;
   const category = document.getElementById("fieldCategory").value;
   const title = document.getElementById("fieldTitle").value.trim();
@@ -241,15 +306,15 @@ function saveEntry() {
     });
   }
 
-  saveSiteData(siteData);
+  await persistSiteData();
   closeForm();
   renderList();
 }
 
-function deleteEntry(id) {
+async function deleteEntry(id) {
   if (!confirm("이 챗봇을 삭제할까요?")) return;
   siteData.gpts = siteData.gpts.filter((g) => g.id !== id);
-  saveSiteData(siteData);
+  await persistSiteData();
   renderList();
 }
 

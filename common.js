@@ -1,6 +1,12 @@
 // 공통 데이터 로직 (index.html, admin.html에서 함께 사용)
 const STORAGE_KEY = "jaegeonAiSiteData";
 
+const GITHUB_REPO = {
+  owner: "kwonys8574-art",
+  repo: "jaegeon-ai-institute",
+  branch: "main",
+};
+
 function loadSiteData() {
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
@@ -29,8 +35,11 @@ function escapeHtml(str) {
 }
 
 function downloadDataJsFile(data) {
-  const content = "// 재건교회 AI 학술연구소 - 데이터 파일 (관리자 페이지에서 내보냄)\n" +
-    "window.SITE_DATA = " + JSON.stringify(data, null, 2) + ";\n";
+  const content =
+    "// 재건교회 AI 학술연구소 - 데이터 파일 (관리자 페이지에서 내보냄)\n" +
+    "window.SITE_DATA = " +
+    JSON.stringify(data, null, 2) +
+    ";\n";
   const blob = new Blob([content], { type: "text/javascript" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -40,4 +49,57 @@ function downloadDataJsFile(data) {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+function parseSiteDataJs(text) {
+  const match = text.match(/window\.SITE_DATA\s*=\s*(\{[\s\S]*\});?\s*$/m);
+  if (!match) {
+    throw new Error("data.js 형식을 읽을 수 없습니다.");
+  }
+  return JSON.parse(match[1]);
+}
+
+async function fetchRemoteSiteData() {
+  const url =
+    `https://raw.githubusercontent.com/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/` +
+    `${GITHUB_REPO.branch}/data.js?t=${Date.now()}`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("원격 data.js를 불러오지 못했습니다. (" + res.status + ")");
+  }
+  return parseSiteDataJs(await res.text());
+}
+
+async function dispatchSiteDataUpdate(data, password, token) {
+  if (!token) {
+    throw new Error("GitHub 동기화 토큰이 설정되지 않았습니다.");
+  }
+  const res = await fetch(
+    `https://api.github.com/repos/${GITHUB_REPO.owner}/${GITHUB_REPO.repo}/dispatches`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        event_type: "update-site-data",
+        client_payload: {
+          password,
+          siteData: JSON.stringify(data),
+        },
+      }),
+    }
+  );
+  if (res.status === 204) return;
+  let detail = "";
+  try {
+    const body = await res.json();
+    detail = body.message || JSON.stringify(body);
+  } catch (_) {
+    detail = res.statusText;
+  }
+  throw new Error("GitHub 반영 요청 실패: " + (detail || res.status));
 }

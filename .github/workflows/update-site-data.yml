@@ -1,0 +1,76 @@
+name: Update site data
+
+on:
+  repository_dispatch:
+    types: [update-site-data]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify admin password
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          PROVIDED_PASSWORD: ${{ github.event.client_payload.password }}
+        run: |
+          if [ -z "$ADMIN_PASSWORD" ]; then
+            echo "::error::ADMIN_PASSWORD secret is not set"
+            exit 1
+          fi
+          if [ "$PROVIDED_PASSWORD" != "$ADMIN_PASSWORD" ]; then
+            echo "::error::Invalid admin password"
+            exit 1
+          fi
+          echo "Password verified"
+
+      - name: Write data.js
+        env:
+          SITE_DATA_JSON: ${{ github.event.client_payload.siteData }}
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          raw = os.environ["SITE_DATA_JSON"]
+          data = json.loads(raw)
+          if not isinstance(data, dict) or "categories" not in data or "gpts" not in data:
+              raise SystemExit("Invalid siteData payload")
+
+          content = (
+              "// 재건교회 AI 학술연구소 - 데이터 파일\n"
+              "window.SITE_DATA = "
+              + json.dumps(data, ensure_ascii=False, indent=2)
+              + ";\n"
+          )
+          Path("data.js").write_text(content, encoding="utf-8")
+          print("data.js updated")
+          PY
+
+      - name: Commit and push
+        run: |
+          git config user.name "jaegeon-admin-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data.js
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Update site data via admin"
+          # Last-write-wins: rebase onto remote if needed, then push
+          for i in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "Push succeeded"
+              exit 0
+            fi
+            echo "Push failed, rebasing (attempt $i)..."
+            git pull --rebase origin main
+          done
+          echo "::error::Failed to push after retries"
+          exit 1

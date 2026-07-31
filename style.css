@@ -327,6 +327,17 @@ footer.site-footer {
 
 .save-banner button { white-space: nowrap; }
 
+.sync-status {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.sync-ok { color: #1f6b3a; }
+.sync-loading, .sync-syncing { color: #1f4fd1; }
+.sync-warn { color: #9a6b00; }
+.sync-error { color: #c0392b; }
+
 .category-admin-item {
   background: #fff;
   border-radius: 10px;
