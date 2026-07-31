@@ -29,13 +29,6 @@ window.SITE_DATA = {
       "category": "commentary-geo"
     },
     {
-      "id": "gpt-1783400392214",
-      "category": "wonuh",
-      "title": "성경사전",
-      "description": "정현철 제작. 성경사전으로 의미를 찾게 도와줌.",
-      "link": "https://chatgpt.com/g/g-6a4e0a9150e481918cde1324e598500a-seonggyeong-sajeon-gpt"
-    },
-    {
       "id": "gpt-1783400500813",
       "category": "wonuh",
       "title": "원어 단어 분석",
