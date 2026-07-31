@@ -34,6 +34,19 @@
       <button class="primary-btn" id="exportBtn">data.js 백업 다운로드</button>
     </div>
 
+    <div class="form-box" id="tokenSetupBox" style="display:none;">
+      <h3>초기 설정 · GitHub 자동 반영 토큰</h3>
+      <p style="margin-top:0;color:#6b6b6b;font-size:0.9rem;">
+        관리자 로그인 비밀번호와 별도로, GitHub Actions를 실행할 토큰이 한 번 필요합니다.
+        토큰은 이 브라우저에만 저장되며, 관리자 3명이 같은 토큰을 각자 한 번씩 입력하면 됩니다.
+      </p>
+      <div class="form-row">
+        <label>GitHub Fine-grained Token (Actions: Read and write)</label>
+        <input type="password" id="dispatchTokenInput" placeholder="github_pat_..." autocomplete="off" />
+      </div>
+      <button class="primary-btn" id="saveTokenBtn">토큰 저장</button>
+    </div>
+
     <div class="admin-toolbar">
       <h2 style="margin:0;">카테고리 관리</h2>
       <button class="primary-btn" id="newCategoryBtn">+ 새 카테고리 추가</button>

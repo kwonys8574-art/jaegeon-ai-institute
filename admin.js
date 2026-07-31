@@ -13,10 +13,15 @@ const GITHUB_DISPATCH_TOKEN = "";
 
 const SESSION_KEY = "jaegeonAiAdminLoggedIn";
 const SESSION_PW_KEY = "jaegeonAiAdminPassword";
+const TOKEN_STORAGE_KEY = "jaegeonAiDispatchToken";
 
 let siteData = null;
 let adminUiBound = false;
 let syncSeq = 0;
+
+function getDispatchToken() {
+  return (localStorage.getItem(TOKEN_STORAGE_KEY) || GITHUB_DISPATCH_TOKEN || "").trim();
+}
 
 function init() {
   const loggedIn = sessionStorage.getItem(SESSION_KEY) === "yes";
@@ -85,14 +90,38 @@ async function showAdmin() {
     document.getElementById("saveEntryBtn").addEventListener("click", saveEntry);
     document.getElementById("exportBtn").addEventListener("click", () => downloadDataJsFile(siteData));
     document.getElementById("newCategoryBtn").addEventListener("click", addCategory);
+    document.getElementById("saveTokenBtn").addEventListener("click", saveDispatchToken);
   }
 
-  if (!GITHUB_DISPATCH_TOKEN) {
+  updateTokenSetupUi();
+}
+
+function updateTokenSetupUi() {
+  const box = document.getElementById("tokenSetupBox");
+  if (!box) return;
+  if (getDispatchToken()) {
+    box.style.display = "none";
+    setSyncStatus("ok", "GitHub 자동 반영 준비가 완료되었습니다. 저장 시 자동으로 반영됩니다.");
+  } else {
+    box.style.display = "block";
     setSyncStatus(
       "error",
-      "GitHub 자동 반영 토큰이 아직 설정되지 않았습니다. 관리자에게 토큰 설정을 요청해 주세요."
+      "GitHub 자동 반영 토큰이 필요합니다. 아래 초기 설정에 토큰을 한 번만 입력해 주세요."
     );
   }
+}
+
+function saveDispatchToken() {
+  const input = document.getElementById("dispatchTokenInput");
+  const token = (input.value || "").trim();
+  if (!token) {
+    alert("토큰을 입력해 주세요.");
+    return;
+  }
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  input.value = "";
+  updateTokenSetupUi();
+  alert("토큰이 이 브라우저에 저장되었습니다. 이제 저장할 때마다 GitHub에 자동 반영됩니다.");
 }
 
 function setSyncStatus(kind, message) {
@@ -111,7 +140,7 @@ async function persistSiteData() {
   const seq = ++syncSeq;
   setSyncStatus("syncing", "GitHub에 반영 중...");
   try {
-    await dispatchSiteDataUpdate(siteData, getSessionPassword(), GITHUB_DISPATCH_TOKEN);
+    await dispatchSiteDataUpdate(siteData, getSessionPassword(), getDispatchToken());
     if (seq !== syncSeq) return;
     setSyncStatus(
       "ok",
