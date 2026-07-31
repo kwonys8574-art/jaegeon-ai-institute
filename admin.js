@@ -91,6 +91,7 @@ async function showAdmin() {
     document.getElementById("exportBtn").addEventListener("click", () => downloadDataJsFile(siteData));
     document.getElementById("newCategoryBtn").addEventListener("click", addCategory);
     document.getElementById("saveTokenBtn").addEventListener("click", saveDispatchToken);
+    document.getElementById("clearTokenBtn").addEventListener("click", clearDispatchToken);
   }
 
   updateTokenSetupUi();
@@ -98,15 +99,26 @@ async function showAdmin() {
 
 function updateTokenSetupUi() {
   const box = document.getElementById("tokenSetupBox");
+  const status = document.getElementById("tokenStatusText");
+  const title = document.getElementById("tokenSetupTitle");
   if (!box) return;
+  box.style.display = "block";
   if (getDispatchToken()) {
-    box.style.display = "none";
+    if (title) title.textContent = "GitHub 자동 반영 토큰 (등록됨 · 재입력 가능)";
+    if (status) {
+      status.className = "sync-status sync-ok";
+      status.textContent = "토큰이 이 브라우저에 저장되어 있습니다. 바꾸려면 새 토큰을 넣고 다시 저장하세요.";
+    }
     setSyncStatus("ok", "GitHub 자동 반영 준비가 완료되었습니다. 저장 시 자동으로 반영됩니다.");
   } else {
-    box.style.display = "block";
+    if (title) title.textContent = "GitHub 자동 반영 토큰 (미등록)";
+    if (status) {
+      status.className = "sync-status sync-error";
+      status.textContent = "아직 토큰이 없습니다. 아래에 토큰을 입력하고 저장해 주세요.";
+    }
     setSyncStatus(
       "error",
-      "GitHub 자동 반영 토큰이 필요합니다. 아래 초기 설정에 토큰을 한 번만 입력해 주세요."
+      "GitHub 자동 반영 토큰이 필요합니다. 아래 칸에 토큰을 입력해 주세요."
     );
   }
 }
@@ -122,6 +134,14 @@ function saveDispatchToken() {
   input.value = "";
   updateTokenSetupUi();
   alert("토큰이 이 브라우저에 저장되었습니다. 이제 저장할 때마다 GitHub에 자동 반영됩니다.");
+}
+
+function clearDispatchToken() {
+  if (!confirm("이 브라우저에 저장된 GitHub 토큰을 삭제할까요?")) return;
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  const input = document.getElementById("dispatchTokenInput");
+  if (input) input.value = "";
+  updateTokenSetupUi();
 }
 
 function setSyncStatus(kind, message) {
