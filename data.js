@@ -25,7 +25,7 @@ window.SITE_DATA = {
       "id": "seed-5",
       "title": "성경사전",
       "description": "성경 인물, 지명, 신학적 개념 등을 주석서·성경지도·사전을 바탕으로 설명해주는 챗봇입니다.",
-      "link": "https://chatgpt.com/g/g-yloWVIjpI-seonggyeongsajeon",
+      "link": "https://chatgpt.com/g/g-6a4e0a9150e481918cde1324e598500a-seonggyeong-sajeon-gpt",
       "category": "commentary-geo"
     },
     {
